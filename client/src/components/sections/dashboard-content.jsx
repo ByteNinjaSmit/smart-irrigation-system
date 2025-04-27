@@ -86,8 +86,8 @@ export function DashboardContent() {
         return { text: "Moist", color: "text-green-500" }
 
       case "lightIntensity":
-        if (value < 50) return { text: "Low", color: "text-blue-500" }
-        if (value > 50) return { text: "Very Bright", color: "text-yellow-500" }
+        if (value > 10) return { text: "Low", color: "text-blue-500" }
+        if (value < 10) return { text: "Very Bright", color: "text-yellow-500" }
         return { text: "Optimal", color: "text-green-500" }
 
       case "rainDrop":
@@ -120,8 +120,8 @@ export function DashboardContent() {
         return "#22c55e" // green
 
       case "lightIntensity":
-        if (value < 60) return "#3b82f6" // blue
-        if (value > 90) return "#eab308" // yellow
+        if (value < 10) return "#3b82f6" // blue
+        if (value > 10) return "#eab308" // yellow
         return "#22c55e" // green
 
       case "rainDrop":
@@ -342,7 +342,7 @@ export function DashboardContent() {
                 variant="outline"
                 className="bg-green-50 text-green-700 border-green-200 flex items-center gap-1 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800"
               >
-                <Microchip  className="h-3 w-3" />
+                <Microchip className="h-3 w-3" />
                 Connected
               </Badge>
             ) : (
@@ -350,7 +350,7 @@ export function DashboardContent() {
                 variant="outline"
                 className="bg-red-50 text-red-700 border-red-200 flex items-center gap-1 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800"
               >
-                <Microchip  className="h-3 w-3" />
+                <Microchip className="h-3 w-3" />
                 Disconnected
               </Badge>
             )}
@@ -552,7 +552,7 @@ export function DashboardContent() {
         <Card className="overflow-hidden border-none shadow-md bg-white dark:bg-gray-900 card-hover">
           <div
             className="h-1.5 w-full"
-            style={{ backgroundColor: getGaugeColor(mappedLightIntensity, "lightIntensity") }}
+            style={{ backgroundColor: getGaugeColor(sensorData.lightLevel, "lightIntensity") }}
           ></div>
           <CardHeader className="p-4 pb-0">
             <div className="flex justify-between items-center">

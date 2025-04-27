@@ -22,8 +22,18 @@ const uint16_t websocket_port = 3000;
 #define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
 
+// D0 → GPIO16
+// D1 → GPIO5
+// D2 → GPIO4
+// D3 → GPIO0
+// D4 → GPIO2
+// D5 → GPIO14
+// D6 → GPIO12
+// D7 → GPIO13
+// D8 → GPIO15
+
 // Sensor pins
-#define LDR_PIN A0  // or use D6 if your library supports it
+#define LDR_PIN 12  // or use D6 if your library supports it FOR D6 having 12
 #define SOIL_MOISTURE_PIN A0
 #define RAIN_SENSOR_PIN 5
 #define LED_PIN LED_BUILTIN  // Usually GPIO2 on ESP8266
@@ -98,6 +108,7 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
   pinMode(SOIL_MOISTURE_PIN, INPUT);
   pinMode(RAIN_SENSOR_PIN, INPUT);
+  pinMode(LDR_PIN, INPUT);  // Set LDR pin as input
 
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
@@ -130,16 +141,19 @@ void loop() {
       return;
     }
 
-    int ldrRaw = analogRead(LDR_PIN);
+    int ldrRaw = digitalRead(LDR_PIN);
     int soilRaw = analogRead(SOIL_MOISTURE_PIN);
     int rainDetected = digitalRead(RAIN_SENSOR_PIN);
 
     int soilMoisturePercent = map(soilRaw, 1023, 0, 0, 100);
     soilMoisturePercent = constrain(soilMoisturePercent, 0, 100);
 
-    int lightLevelPercent = map(ldrRaw, 0, 1023, 0, 100);
+    // If LDR detects light, it's HIGH, otherwise LOW
+    int lightLevelPercent = (ldrRaw == HIGH) ? 0 : 100; // 100% light detected or 0% no light
     lightLevelPercent = constrain(lightLevelPercent, 0, 100);
-
+    Serial.print("LDR RAW: ");
+    Serial.print(ldrRaw);
+    Serial.println();
     bool soilDry = soilMoisturePercent < 60;
     bool highTemperature = temperature > 30.0;
     bool lowHumidity = humidity < 40.0;
