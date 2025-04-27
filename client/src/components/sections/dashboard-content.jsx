@@ -309,7 +309,7 @@ export function DashboardContent() {
   // const isEspConnected = sensorData.espConnected;
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mx-auto p-2">
         <div>
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
             Smart Irrigation System
@@ -373,7 +373,7 @@ export function DashboardContent() {
       </div>
 
       {/* Main Dashboard Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mx-auto p-4">
         {/* Temperature Card - DHT11 */}
         <Card className="overflow-hidden border-none shadow-md bg-white dark:bg-gray-900 card-hover">
           <div
@@ -607,199 +607,200 @@ export function DashboardContent() {
             </div>
           </CardContent>
         </Card>
+        {/* Rain Detection Card */}
+        <Card className="overflow-hidden border-none shadow-md bg-white dark:bg-gray-900 card-hover">
+          <div className="h-1.5 w-full" style={{ backgroundColor: getGaugeColor(sensorData.rainDrop, "rainDrop") }}></div>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2">
+              <CloudRain className="h-5 w-5 text-blue-500" />
+              Rain Detection
+            </CardTitle>
+            <CardDescription>Raindrop sensor status</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col items-center justify-center p-6">
+              {sensorData.rainDrop === 0 ? (
+                <div className="flex flex-col items-center">
+                  <CloudDrizzle className="h-24 w-24 text-blue-500 animate-pulse-glow" />
+                  <div className="text-2xl font-bold mt-4 text-blue-600 dark:text-blue-400">Rain Detected</div>
+                  <div className="text-sm text-muted-foreground mt-2">
+                    Natural irrigation in progress. Pump operation may be paused.
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <CloudOff className="h-24 w-24 text-gray-400" />
+                  <div className="text-2xl font-bold mt-4 text-gray-600 dark:text-gray-400">No Rain Detected</div>
+                  <div className="text-sm text-muted-foreground mt-2">
+                    Monitor soil moisture levels for irrigation needs.
+                  </div>
+                </div>
+              )}
+              <div className="mt-6 text-xs text-muted-foreground">
+                Raw Value: {sensorData.rainDrop} (1 = No Rain, 0 = Rain Detected)
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Rain Detection Card */}
-      <Card className="overflow-hidden border-none shadow-md bg-white dark:bg-gray-900 card-hover">
-        <div className="h-1.5 w-full" style={{ backgroundColor: getGaugeColor(sensorData.rainDrop, "rainDrop") }}></div>
+
+      {/* Data Logs / History */}
+      <Card className="lg:col-span-2 border-none shadow-md bg-white dark:bg-gray-900 card-hover">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2">
-            <CloudRain className="h-5 w-5 text-blue-500" />
-            Rain Detection
+            <Clock className="h-5 w-5 text-primary" />
+            Data History
           </CardTitle>
-          <CardDescription>Raindrop sensor status</CardDescription>
+          <CardDescription>View historical data trends</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col items-center justify-center p-6">
-            {sensorData.rainDrop === 0 ? (
-              <div className="flex flex-col items-center">
-                <CloudDrizzle className="h-24 w-24 text-blue-500 animate-pulse-glow" />
-                <div className="text-2xl font-bold mt-4 text-blue-600 dark:text-blue-400">Rain Detected</div>
-                <div className="text-sm text-muted-foreground mt-2">
-                  Natural irrigation in progress. Pump operation may be paused.
-                </div>
+          <Tabs defaultValue="24h">
+            <TabsList className="mb-4 bg-gray-100 dark:bg-gray-800">
+              <TabsTrigger
+                value="24h"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                24 Hours
+              </TabsTrigger>
+              <TabsTrigger
+                value="7d"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                7 Days
+              </TabsTrigger>
+              <TabsTrigger
+                value="30d"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                30 Days
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="24h" className="h-[300px]">
+              <HistoryChart type="24h" />
+            </TabsContent>
+            <TabsContent value="7d" className="h-[300px]">
+              <HistoryChart type="7d" />
+            </TabsContent>
+            <TabsContent value="30d" className="h-[300px]">
+              <HistoryChart type="30d" />
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+      {/* Control Panel and Data Logs */}
+      {/* <div className="grid grid-cols-1 lg:grid-cols-3 gap-4"> */}
+      {/* Control Panel */}
+      <Card className="lg:col-span-1 border-none shadow-md bg-white dark:bg-gray-900 card-hover">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2">
+            <BarChart2 className="h-5 w-5 text-primary" />
+            Control Panel
+          </CardTitle>
+          <CardDescription>Manage your irrigation system</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
+            <div className="flex items-center gap-3">
+              <div
+                className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center",
+                  sensorData.pumpStatus
+                    ? "bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400"
+                    : "bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500",
+                )}
+              >
+                <Power className="h-5 w-5" />
               </div>
-            ) : (
-              <div className="flex flex-col items-center">
-                <CloudOff className="h-24 w-24 text-gray-400" />
-                <div className="text-2xl font-bold mt-4 text-gray-600 dark:text-gray-400">No Rain Detected</div>
-                <div className="text-sm text-muted-foreground mt-2">
-                  Monitor soil moisture levels for irrigation needs.
-                </div>
+              <div>
+                <div className="font-medium">Pump Status</div>
+                <div className="text-sm text-muted-foreground">{sensorData.pumpStatus ? "Active" : "Inactive"}</div>
               </div>
-            )}
-            <div className="mt-6 text-xs text-muted-foreground">
-              Raw Value: {sensorData.rainDrop} (1 = No Rain, 0 = Rain Detected)
+            </div>
+            <Switch
+              checked={sensorData.pumpStatus}
+              onCheckedChange={togglePump}
+              disabled={sensorData.autoMode || sensorData.rainDrop === 1}
+              className="data-[state=checked]:bg-green-500"
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
+            <div className="flex items-center gap-3">
+              <div
+                className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center",
+                  sensorData.autoMode
+                    ? "bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400"
+                    : "bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500",
+                )}
+              >
+                {sensorData.autoMode ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
+              </div>
+              <div>
+                <div className="font-medium">Auto Mode</div>
+                <div className="text-sm text-muted-foreground">{sensorData.autoMode ? "Enabled" : "Disabled"}</div>
+              </div>
+            </div>
+            <Switch
+              checked={sensorData.autoMode}
+              onCheckedChange={toggleAutoMode}
+              className="data-[state=checked]:bg-blue-500"
+            />
+          </div>
+
+          <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
+            <div className="flex items-center gap-2 mb-2">
+              <GaugeIcon className="h-5 w-5 text-purple-500" />
+              <div className="font-medium">Sensor Status</div>
+            </div>
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Soil Moisture</span>
+                <span className="font-medium">{sensorData.soilMoisture.toFixed(1)}%</span>
+              </div>
+              <Progress value={sensorData.soilMoisture} className="h-2" />
+
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Light Level</span>
+                <span className="font-medium">{sensorData.lightLevel.toFixed(1)}%</span>
+              </div>
+              <Progress value={sensorData.lightLevel} className="h-2" />
             </div>
           </div>
+
+          {sensorData.autoMode && (
+            <Alert className="bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Auto Mode Enabled</AlertTitle>
+              <AlertDescription>
+                The system will automatically control the pump based on soil moisture levels and rain detection.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {irrigationNeeded && (
+            <Alert className="bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800 animate-pulse-glow">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Irrigation Needed</AlertTitle>
+              <AlertDescription>
+                Soil moisture is below optimal levels and no rain is detected. Consider watering your plants.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {sensorData.rainDrop === 0 && (
+            <Alert className="bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
+              <CloudRain className="h-4 w-4" />
+              <AlertTitle>Rain Detected</AlertTitle>
+              <AlertDescription>Natural irrigation is occurring. Automatic watering is paused.</AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
 
-      {/* Control Panel and Data Logs */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Control Panel */}
-        <Card className="lg:col-span-1 border-none shadow-md bg-white dark:bg-gray-900 card-hover">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2">
-              <BarChart2 className="h-5 w-5 text-primary" />
-              Control Panel
-            </CardTitle>
-            <CardDescription>Manage your irrigation system</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-              <div className="flex items-center gap-3">
-                <div
-                  className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center",
-                    sensorData.pumpStatus
-                      ? "bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400"
-                      : "bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500",
-                  )}
-                >
-                  <Power className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="font-medium">Pump Status</div>
-                  <div className="text-sm text-muted-foreground">{sensorData.pumpStatus ? "Active" : "Inactive"}</div>
-                </div>
-              </div>
-              <Switch
-                checked={sensorData.pumpStatus}
-                onCheckedChange={togglePump}
-                disabled={sensorData.autoMode || sensorData.rainDrop === 1}
-                className="data-[state=checked]:bg-green-500"
-              />
-            </div>
 
-            <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-              <div className="flex items-center gap-3">
-                <div
-                  className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center",
-                    sensorData.autoMode
-                      ? "bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400"
-                      : "bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500",
-                  )}
-                >
-                  {sensorData.autoMode ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
-                </div>
-                <div>
-                  <div className="font-medium">Auto Mode</div>
-                  <div className="text-sm text-muted-foreground">{sensorData.autoMode ? "Enabled" : "Disabled"}</div>
-                </div>
-              </div>
-              <Switch
-                checked={sensorData.autoMode}
-                onCheckedChange={toggleAutoMode}
-                className="data-[state=checked]:bg-blue-500"
-              />
-            </div>
-
-            <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-              <div className="flex items-center gap-2 mb-2">
-                <GaugeIcon className="h-5 w-5 text-purple-500" />
-                <div className="font-medium">Sensor Status</div>
-              </div>
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Soil Moisture</span>
-                  <span className="font-medium">{sensorData.soilMoisture.toFixed(1)}%</span>
-                </div>
-                <Progress value={sensorData.soilMoisture} className="h-2" />
-
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Light Level</span>
-                  <span className="font-medium">{sensorData.lightLevel.toFixed(1)}%</span>
-                </div>
-                <Progress value={sensorData.lightLevel} className="h-2" />
-              </div>
-            </div>
-
-            {sensorData.autoMode && (
-              <Alert className="bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Auto Mode Enabled</AlertTitle>
-                <AlertDescription>
-                  The system will automatically control the pump based on soil moisture levels and rain detection.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {irrigationNeeded && (
-              <Alert className="bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800 animate-pulse-glow">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Irrigation Needed</AlertTitle>
-                <AlertDescription>
-                  Soil moisture is below optimal levels and no rain is detected. Consider watering your plants.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {sensorData.rainDrop === 1 && (
-              <Alert className="bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
-                <CloudRain className="h-4 w-4" />
-                <AlertTitle>Rain Detected</AlertTitle>
-                <AlertDescription>Natural irrigation is occurring. Automatic watering is paused.</AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Data Logs / History */}
-        <Card className="lg:col-span-2 border-none shadow-md bg-white dark:bg-gray-900 card-hover">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-primary" />
-              Data History
-            </CardTitle>
-            <CardDescription>View historical data trends</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="24h">
-              <TabsList className="mb-4 bg-gray-100 dark:bg-gray-800">
-                <TabsTrigger
-                  value="24h"
-                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                >
-                  24 Hours
-                </TabsTrigger>
-                <TabsTrigger
-                  value="7d"
-                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                >
-                  7 Days
-                </TabsTrigger>
-                <TabsTrigger
-                  value="30d"
-                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                >
-                  30 Days
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="24h" className="h-[300px]">
-                <HistoryChart type="24h" />
-              </TabsContent>
-              <TabsContent value="7d" className="h-[300px]">
-                <HistoryChart type="7d" />
-              </TabsContent>
-              <TabsContent value="30d" className="h-[300px]">
-                <HistoryChart type="30d" />
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-      </div>
+      {/* </div> */}
 
       {/* System Status */}
       <Card className="border-none shadow-md bg-white dark:bg-gray-900 card-hover">

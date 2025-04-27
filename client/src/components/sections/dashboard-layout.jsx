@@ -21,8 +21,8 @@ export function DashboardLayout({ children }) {
   ]
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <div className="flex min-h-screen flex-col px-2 mx-auto">
+      <header className="top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="mr-4 hidden md:flex">
@@ -75,7 +75,7 @@ export function DashboardLayout({ children }) {
         </div>
       </header>
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-background md:hidden">
+        <div className="fixed inset-0 z-50 bg-background md:hidden mx-auto p-2">
           <div className="container flex h-16 items-center justify-between">
             <Link href="/" className="flex items-center space-x-2">
               <div className="relative h-8 w-8">
@@ -116,7 +116,7 @@ export function DashboardLayout({ children }) {
           </nav>
         </div>
       )}
-      <main className="flex-1">
+      <main className="flex-1 mx-auto">
         <div className="container py-4">{children}</div>
       </main>
     </div>
