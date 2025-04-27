@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   Wifi,
   WifiOff,
+  Microchip,
   CloudRain,
   Clock,
   Zap,
@@ -40,11 +41,12 @@ const initialSensorData = {
   humidity: 65,
   soilMoisture: 5, // Adjusted for raw sensor value (0-1024)
   lightLevel: 90, // Adjusted for LDR sensor (0-1024)
-  rainDrop: 1, // 0 = no rain, 1 = rain detected
+  rainDrop: 1,
   pumpStatus: false,
   autoMode: true,
   lastUpdated: new Date().toISOString(),
   connectionStatus: true,
+  espConnected: false,
 }
 
 // Sensor calibration and mapping functions
@@ -79,8 +81,8 @@ export function DashboardContent() {
         return { text: "Optimal", color: "text-green-500" }
 
       case "soilMoisture":
-        if (value < 10) return { text: "Dry", color: "text-red-500" }
-        if (value > 30) return { text: "Wet", color: "text-blue-500" }
+        if (value < 30) return { text: "Dry", color: "text-red-500" }
+        if (value > 50) return { text: "Wet", color: "text-blue-500" }
         return { text: "Moist", color: "text-green-500" }
 
       case "lightIntensity":
@@ -113,13 +115,13 @@ export function DashboardContent() {
         return "#22c55e" // green
 
       case "soilMoisture":
-        if (value < 10) return "#ef4444" // red
-        if (value > 30) return "#3b82f6" // blue
+        if (value < 30) return "#ef4444" // red
+        if (value > 50) return "#3b82f6" // blue
         return "#22c55e" // green
 
       case "lightIntensity":
-        if (value < 300) return "#3b82f6" // blue
-        if (value > 900) return "#eab308" // yellow
+        if (value < 60) return "#3b82f6" // blue
+        if (value > 90) return "#eab308" // yellow
         return "#22c55e" // green
 
       case "rainDrop":
@@ -134,14 +136,20 @@ export function DashboardContent() {
   // WebSocket connection
   useEffect(() => {
     const connectWebSocket = () => {
-      const socket = new WebSocket(API)
-      wsRef.current = socket
+      const socket = new WebSocket(API);
+      wsRef.current = socket;
 
       socket.onopen = () => {
-        console.log("✅ Connected to WebSocket server")
-        setIsConnected(true)
-        socket.send(JSON.stringify({ type: "init" }))
-      }
+        console.log("✅ Connected to WebSocket server");
+        setIsConnected(true);
+
+        // Send INIT to identify as a Frontend
+        socket.send(JSON.stringify({
+          type: "init-frontend",
+          frontendId: "frontend-1234"  // <--- Your unique ID (maybe from login or session)
+        }));
+      };
+
       socket.onmessage = (event) => {
         console.log("📡 Sensor data received:", event.data);
 
@@ -175,21 +183,22 @@ export function DashboardContent() {
             ? normalize(1023 - data.lightLevel)
             : undefined;
 
-          const newHumidity = data.humidity !== undefined ? normalizeHum(50+data.humidity) : undefined;
-          
-          console.log("🌧️ Humidity value received:", data.humidity)
+          const newHumidity = data.humidity !== undefined ? normalizeHum(50 + data.humidity) : undefined;
+
+          // console.log("🌧️ Humidity value received:", data.humidity)
           // Update the sensor data
           setSensorData((prev) => {
             const updatedData = {
               ...prev,
               temperature: data.temperature ?? prev.temperature,
               humidity: data.humidity !== undefined ? data.humidity : prev.humidity,
-              soilMoisture: normalizedMoisture ?? prev.soilMoisture,
-              lightLevel: normalizedLight ?? prev.lightLevel,
+              soilMoisture: data.soilMoisture ?? prev.soilMoisture,
+              lightLevel: data.lightLevel !== undefined ? data.lightLevel : prev.lightLevel,
               rainDrop: data.rainDrop ?? prev.rainDrop,
               pumpStatus: data.pumpStatus ?? prev.pumpStatus,
               autoMode: data.autoMode ?? prev.autoMode,
               lastUpdated: new Date().toISOString(),
+              espConnected: data.espConnected ?? prev.espConnected,
             };
 
 
@@ -203,30 +212,28 @@ export function DashboardContent() {
 
 
       socket.onclose = () => {
-        console.log("❌ Disconnected from WebSocket server")
-        setIsConnected(false)
-        // Attempt to reconnect after 3 seconds
-        setTimeout(connectWebSocket, 3000)
-      }
+        console.log("❌ Disconnected from WebSocket server");
+        setIsConnected(false);
+        setTimeout(connectWebSocket, 3000);
+      };
 
       socket.onerror = (error) => {
-        console.error("WebSocket error:", error)
-        setIsConnected(false)
-      }
-    }
+        console.error("WebSocket error:", error);
+        setIsConnected(false);
+      };
+    };
 
-    connectWebSocket()
+    connectWebSocket();
 
-    // Cleanup WebSocket on unmount
     return () => {
       if (wsRef.current) {
-        wsRef.current.close()
+        wsRef.current.close();
       }
-    }
-  }, []) // Empty dependency array to run once on mount
+    };
+  }, []); // Empty dependency array to run once on mount
 
   // console.log("🌱 Soil Moisture Sensor data (normalized %):", sensorData.soilMoisture);
-  console.log("🌱 Humidity Sensor data (normalized %):", sensorData.humidity);
+  // console.log("🌱 Humidity Sensor data (normalized %):", sensorData.humidity);
   // console.log("🌱 LDR Sensor data (normalized %):", sensorData.lightLevel);
 
   // Function to toggle pump status
@@ -299,7 +306,7 @@ export function DashboardContent() {
 
   // Determine if irrigation is needed based on soil moisture and rain
   const irrigationNeeded = mappedSoilMoisture < 30 && sensorData.rainDrop === 1
-
+  // const isEspConnected = sensorData.espConnected;
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -325,6 +332,25 @@ export function DashboardContent() {
                 className="bg-red-50 text-red-700 border-red-200 flex items-center gap-1 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800"
               >
                 <WifiOff className="h-3 w-3" />
+                Disconnected
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center">
+            {sensorData.espConnected ? (
+              <Badge
+                variant="outline"
+                className="bg-green-50 text-green-700 border-green-200 flex items-center gap-1 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800"
+              >
+                <Microchip  className="h-3 w-3" />
+                Connected
+              </Badge>
+            ) : (
+              <Badge
+                variant="outline"
+                className="bg-red-50 text-red-700 border-red-200 flex items-center gap-1 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800"
+              >
+                <Microchip  className="h-3 w-3" />
                 Disconnected
               </Badge>
             )}
@@ -448,12 +474,12 @@ export function DashboardContent() {
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="flex flex-col items-center justify-center">
-              <div className="text-4xl font-bold mt-2 animate-float">{sensorData?.humidity}</div>
+              <div className="text-4xl font-bold mt-2 animate-float">{sensorData?.humidity.toFixed(1)}</div>
               <div className="w-full h-32 mt-2">
                 <Gauge
                   value={sensorData.humidity}
                   min={0}
-                  max={50}
+                  max={100}
                   color={getGaugeColor(sensorData.humidity, "humidity")}
                 />
               </div>
@@ -509,7 +535,7 @@ export function DashboardContent() {
               <div className="w-full h-32 mt-2">
                 <Gauge
                   value={sensorData.soilMoisture}
-                  min={10}
+                  min={0}
                   max={100}
                   color={getGaugeColor(sensorData.soilMoisture, "soilMoisture")}
                 />
@@ -565,13 +591,13 @@ export function DashboardContent() {
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="flex flex-col items-center justify-center">
-              <div className="text-4xl font-bold mt-2 animate-float">{mappedLightIntensity.toFixed(1)}%</div>
+              <div className="text-4xl font-bold mt-2 animate-float">{sensorData.lightLevel.toFixed(1)}%</div>
               <div className="w-full h-32 mt-2">
                 <Gauge
-                  value={mappedLightIntensity}
+                  value={sensorData.lightLevel}
                   min={0}
                   max={100}
-                  color={getGaugeColor(mappedLightIntensity, "lightIntensity")}
+                  color={getGaugeColor(sensorData.lightLevel, "lightIntensity")}
                 />
               </div>
               <div className="flex justify-between w-full text-xs text-muted-foreground mt-2">
@@ -694,9 +720,9 @@ export function DashboardContent() {
 
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Light Level</span>
-                  <span className="font-medium">{mappedLightIntensity.toFixed(1)}%</span>
+                  <span className="font-medium">{sensorData.lightLevel.toFixed(1)}%</span>
                 </div>
-                <Progress value={mappedLightIntensity} className="h-2" />
+                <Progress value={sensorData.lightLevel} className="h-2" />
               </div>
             </div>
 

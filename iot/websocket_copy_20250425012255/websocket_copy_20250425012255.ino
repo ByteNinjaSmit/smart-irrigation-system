@@ -1,13 +1,20 @@
 #include <ESP8266WiFi.h>
 #include <WebSocketsClient.h>
 #include <DHT.h>
+#include <ArduinoJson.h>
+#include <WiFiUdp.h>
+#include <NTPClient.h>
+
 
 // WiFi credentials
 const char* ssid = "IOT";
 const char* password = "1234567890";
+WiFiUDP udp;
+NTPClient timeClient(udp, "pool.ntp.org", 19800, 60000);  // 19800 is the UTC offset for IST (India Standard Time)
+
 
 // WebSocket server
-const char* websocket_server = "192.168.146.112";
+const char* websocket_server = "192.168.15.112";
 const uint16_t websocket_port = 3000;
 
 // DHT22 setup
@@ -16,10 +23,24 @@ const uint16_t websocket_port = 3000;
 DHT dht(DHTPIN, DHTTYPE);
 
 // Sensor pins
-#define LDR_PIN A0 // or use D6 if your library supports it
+#define LDR_PIN A0  // or use D6 if your library supports it
 #define SOIL_MOISTURE_PIN A0
 #define RAIN_SENSOR_PIN 5
 #define LED_PIN LED_BUILTIN  // Usually GPIO2 on ESP8266
+
+bool autoMode = true;           // Set true if you want automatic system, can toggle by server command
+bool pumpStatus = false;        // true if pump (LED) is ON
+bool espConnected = false;  // true if WebSocket connected
+
+
+// Global variables at top
+float previousTemperature = -1000;
+float previousHumidity = -1000;
+int previousLightPercent = -1;
+int previousSoilMoisturePercent = -1;
+int previousRainDetected = -1;
+bool previousPumpStatus = false;
+bool firstTimeSend = true;  // 👈 NEW
 
 // WebSocket
 WebSocketsClient webSocket;
@@ -29,15 +50,48 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
   switch (type) {
     case WStype_CONNECTED:
       Serial.println("Connected to WebSocket server");
+      // Identify as ESP
+      webSocket.sendTXT("{\"type\":\"init-esp\"}");
+      espConnected = true;  // set connected
       break;
     case WStype_TEXT:
-      Serial.printf("Received from server: %s\n", payload);
-      break;
+      {
+
+        Serial.printf("Received from server: %s\n", payload);
+
+        String msg = String((char*)payload);
+
+        if (msg.indexOf("frontend-connected") >= 0) {
+          Serial.println("Frontend connected, sending immediate data...");
+          firstTimeSend = true;  // 👈 Mark to send immediately
+        }
+        break;
+      }
     case WStype_DISCONNECTED:
       Serial.println("WebSocket disconnected");
+      espConnected = false;  // set disconnected
       break;
   }
 }
+
+
+String getISOTime() {
+  // Ensure the NTP client has updated the time
+  timeClient.update();
+
+  // Get the current time
+  unsigned long currentEpoch = timeClient.getEpochTime(); // Get current time in seconds since epoch
+  int hours = (currentEpoch / 3600) % 24;  // Calculate hours (0-23)
+  int minutes = (currentEpoch / 60) % 60;  // Calculate minutes (0-59)
+  int seconds = currentEpoch % 60;        // Calculate seconds (0-59)
+
+  // Format as ISO 8601 string: "2025-04-27T15:52:30+05:30"
+  char buffer[30];
+  snprintf(buffer, sizeof(buffer), "2025-04-27T%02d:%02d:%02d+05:30", hours, minutes, seconds);
+  return String(buffer);
+}
+
+
 
 void setup() {
   Serial.begin(115200);
@@ -58,65 +112,82 @@ void setup() {
   webSocket.begin(websocket_server, websocket_port, "/");
   webSocket.onEvent(webSocketEvent);
   webSocket.setReconnectInterval(5000);
+
+  timeClient.begin();   // Initialize the NTP client
+  timeClient.update();  // Update the time
 }
 
+
+// Inside Loop
 void loop() {
   webSocket.loop();
 
   if (millis() - lastSendTime > 1000) {
     float temperature = dht.readTemperature(false);
     float humidity = dht.readHumidity();
-
-    // float tempnew = (((temperature * 5.0) / 1024.0)-0.5)*100;
-  // light = (lightValue * 5.0) / 1024.0;
-    // humidity = (humidity * 5.0) / 1024.0;
-
-    Serial.print("Temp: ");
-    Serial.print(temperature);
-    Serial.print(" °C | Humidity: ");
-    Serial.print(humidity);
-    Serial.println(" %");
-
     if (isnan(temperature) || isnan(humidity)) {
       Serial.println("Failed to read from DHT sensor!");
       return;
     }
 
-    // temperature = constrain(temperature, -20.0, 60.0);
-    humidity = constrain(humidity, 0.0, 100.0);
-
-    int ldrValue = analogRead(LDR_PIN);
-    int soilMoistureStatus = analogRead(SOIL_MOISTURE_PIN);
+    int ldrRaw = analogRead(LDR_PIN);
+    int soilRaw = analogRead(SOIL_MOISTURE_PIN);
     int rainDetected = digitalRead(RAIN_SENSOR_PIN);
-    Serial.print("moistureLevel: ");
-    Serial.print(soilMoistureStatus);
 
-    Serial.println();
+    int soilMoisturePercent = map(soilRaw, 1023, 0, 0, 100);
+    soilMoisturePercent = constrain(soilMoisturePercent, 0, 100);
 
-    int lightLevel = map(ldrValue, 0, 1023, 10, 0);  // 10 = dark, 0 = bright
-    int moistureLevel = soilMoistureStatus == 0 ? 5 : 2;
+    int lightLevelPercent = map(ldrRaw, 0, 1023, 0, 100);
+    lightLevelPercent = constrain(lightLevelPercent, 0, 100);
 
+    bool soilDry = soilMoisturePercent < 60;
+    bool highTemperature = temperature > 30.0;
+    bool lowHumidity = humidity < 40.0;
+    bool noRain = rainDetected == 1;
 
-
-    if ((temperature > 30 || lightLevel < 2) && moistureLevel < 4 && rainDetected == 1) {
+    if ((soilDry && (highTemperature || lowHumidity)) && noRain) {
       digitalWrite(LED_PIN, LOW);
-      Serial.println("Turning on LED: HOT/Sunny/Dry and No Rain");
+      pumpStatus = true;
     } else {
       digitalWrite(LED_PIN, HIGH);
-      Serial.println("Turning off LED");
+      pumpStatus = false;
     }
 
-    String data = "{";
-    data += "\"temperature\":" + String(temperature, 1);
-    data += ",\"humidity\":" + String(humidity);
-    data += ",\"lightLevel\":" + String(ldrValue);
-    data += ",\"soilMoisture\":" + String(soilMoistureStatus);
-    data += ",\"rainDrop\":" + String(rainDetected);
-    data += "}";
+    bool shouldSend = false;
 
-    webSocket.sendTXT(data);
-    Serial.println("Sent: " + data);
+    // Detect changes
+    if (firstTimeSend || temperature != previousTemperature || humidity != previousHumidity || lightLevelPercent != previousLightPercent || soilMoisturePercent != previousSoilMoisturePercent || rainDetected != previousRainDetected || pumpStatus != previousPumpStatus) {
+      shouldSend = true;
+    }
 
-    lastSendTime = millis();
+    if (shouldSend) {
+      previousTemperature = temperature;
+      previousHumidity = humidity;
+      previousLightPercent = lightLevelPercent;
+      previousSoilMoisturePercent = soilMoisturePercent;
+      previousRainDetected = rainDetected;
+      previousPumpStatus = pumpStatus;
+
+      firstTimeSend = false;  // after first send
+
+      StaticJsonDocument<512> doc;
+      doc["temperature"] = temperature;
+      doc["humidity"] = humidity;
+      doc["soilMoisture"] = soilMoisturePercent;
+      doc["lightLevel"] = lightLevelPercent;
+      doc["rainDrop"] = rainDetected;
+      doc["pumpStatus"] = pumpStatus;
+      doc["autoMode"] = autoMode;
+      doc["timestamp"] = getISOTime();  // Use the NTP time here
+      doc["espConnected"]=espConnected;
+
+      String jsonStr;
+      serializeJson(doc, jsonStr);
+
+      webSocket.sendTXT(jsonStr);
+      Serial.println("Data Sent to Server");
+    }
+
+    lastSendTime = millis();  // update timer
   }
 }

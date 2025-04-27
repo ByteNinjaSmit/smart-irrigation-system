@@ -1,70 +1,51 @@
-import { useEffect, useState } from "react"
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
+import axios from "axios";
+import { useEffect, useState } from "react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 export function HistoryChart({ type }) {
-  const [data, setData] = useState([])
+  const [data, setData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Generate mock data based on the selected time period
-    const generateMockData = () => {
-      const mockData = []
-      let dataPoints = 0
-      let timeFormat = ""
-
-      switch (type) {
-        case "24h":
-          dataPoints = 24
-          timeFormat = "HH:00"
-          break
-        case "7d":
-          dataPoints = 7
-          timeFormat = "ddd"
-          break
-        case "30d":
-          dataPoints = 30
-          timeFormat = "MMM D"
-          break
+    const fetchHistoryData = async () => {
+      try {
+        const response = await axios.get(`http://localhost:3000/api/data/history?type=${type}`);
+        setData(response.data); // Expecting { history: [...] } from backend
+        // console.log("Data Charts: ", response.data);
+      } catch (error) {
+        console.error("Error fetching history data:", error);
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      const now = new Date()
+    fetchHistoryData();
+  }, [type]);
 
-      for (let i = dataPoints - 1; i >= 0; i--) {
-        const date = new Date()
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <p className="text-gray-500">Loading chart...</p>
+      </div>
+    );
+  }
 
-        if (type === "24h") {
-          date.setHours(now.getHours() - i)
-          date.setMinutes(0)
-          date.setSeconds(0)
-        } else if (type === "7d") {
-          date.setDate(now.getDate() - i)
-        } else if (type === "30d") {
-          date.setDate(now.getDate() - i)
-        }
-
-        // Generate random values with some consistency
-        const baseTemp = 25 + Math.sin((i / (dataPoints / 2)) * Math.PI) * 5
-        const baseHumidity = 60 + Math.sin((i / (dataPoints / 3)) * Math.PI) * 15
-        const baseMoisture = 50 + Math.sin((i / (dataPoints / 4)) * Math.PI) * 20
-
-        mockData.push({
-          time: date.toLocaleString("en-US", {
-            hour: "numeric",
-            hour12: true,
-            month: "short",
-            day: "numeric",
-            weekday: "short",
-          }),
-          temperature: Math.round((baseTemp + (Math.random() * 2 - 1)) * 10) / 10,
-          humidity: Math.round((baseHumidity + (Math.random() * 5 - 2.5)) * 10) / 10,
-          soilMoisture: Math.round((baseMoisture + (Math.random() * 8 - 4)) * 10) / 10,
-        })
-      }
-
-      return mockData
+  // Custom Tooltip to show date and time only on hover
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      
+      return (
+        <div className="bg-white border p-2 rounded shadow-lg">
+          <p className="font-semibold">{`Time: ${label}`}</p>
+          <p>{`Temperature: ${payload[0].value} °C`}</p>
+          <p>{`Humidity: ${payload[1].value} %`}</p>
+          <p>{`Soil Moisture: ${payload[2].value} %`}</p>
+        </div>
+      );
     }
 
-    setData(generateMockData())
-  }, [type])
+    return null;
+  };
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -78,10 +59,11 @@ export function HistoryChart({ type }) {
         }}
       >
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="time" tick={{ fontSize: 12 }} interval={type === "24h" ? 3 : 0} />
+        {/* Remove XAxis time below chart */}
+        <XAxis dataKey="time" tick={false} />
         <YAxis yAxisId="left" orientation="left" domain={[0, 50]} />
         <YAxis yAxisId="right" orientation="right" domain={[0, 100]} />
-        <Tooltip />
+        <Tooltip content={<CustomTooltip />} />
         <Legend />
         <Line
           yAxisId="left"
@@ -91,9 +73,21 @@ export function HistoryChart({ type }) {
           stroke="#ef4444"
           activeDot={{ r: 8 }}
         />
-        <Line yAxisId="right" type="monotone" dataKey="humidity" name="Humidity (%)" stroke="#3b82f6" />
-        <Line yAxisId="right" type="monotone" dataKey="soilMoisture" name="Soil Moisture (%)" stroke="#22c55e" />
+        <Line
+          yAxisId="right"
+          type="monotone"
+          dataKey="humidity"
+          name="Humidity (%)"
+          stroke="#3b82f6"
+        />
+        <Line
+          yAxisId="right"
+          type="monotone"
+          dataKey="soilMoisture"
+          name="Soil Moisture (%)"
+          stroke="#22c55e"
+        />
       </LineChart>
     </ResponsiveContainer>
-  )
+  );
 }

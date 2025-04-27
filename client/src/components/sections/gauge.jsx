@@ -11,7 +11,7 @@ export function Gauge({ value, min, max, color }) {
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
-    console.log("Gauge props:", { value, min, max, color });
+    // console.log("Gauge props:", { value, min, max, color });
 
     if (isNaN(min) || isNaN(max) || isNaN(value)) {
       console.warn("Gauge received invalid numeric props:", { min, max, value });
