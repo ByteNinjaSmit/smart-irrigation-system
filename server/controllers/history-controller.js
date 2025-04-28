@@ -9,21 +9,21 @@ exports.getSensorHistory = async (req, res) => {
     let groupFormat;
     if (type === "24h") {
       timeAgo = new Date(Date.now() - 24 * 60 * 60 * 1000); // last 24 hours
-      groupFormat = { $hour: "$timestamp" }; // group by hour
+      groupFormat = { $hour: "$createdAt" }; // group by hour
     } else if (type === "7d") {
       timeAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days
-      groupFormat = { $dayOfMonth: "$timestamp" }; // group by day
+      groupFormat = { $dayOfMonth: "$createdAt" }; // group by day
     } else if (type === "30d") {
       timeAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // last 30 days
-      groupFormat = { $dayOfMonth: "$timestamp" }; // group by day
+      groupFormat = { $dayOfMonth: "$createdAt" }; // group by day
     } else {
       return res.status(400).json({ message: "Invalid type parameter" });
     }
 
     // Fetch sensor data from DB
     const sensorData = await SensorData.find({
-      timestamp: { $gte: timeAgo }
-    }).sort({ timestamp: 1 }); // sort oldest -> newest
+      createdAt: { $gte: timeAgo }
+    }).sort({ createdAt: 1 }); // sort oldest -> newest
 
     // Format data for frontend
     const formattedData = sensorData.map(entry => ({
