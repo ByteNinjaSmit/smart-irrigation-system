@@ -14,7 +14,7 @@ NTPClient timeClient(udp, "pool.ntp.org", 19800, 60000);  // 19800 is the UTC of
 
 
 // WebSocket server
-const char* websocket_server = "192.168.15.112";
+const char* websocket_server = "192.168.44.57"; // 192.168.44.57  / 192.168.15.112
 const uint16_t websocket_port = 3000;
 
 // DHT22 setup
@@ -151,12 +151,12 @@ void loop() {
     // If LDR detects light, it's HIGH, otherwise LOW
     int lightLevelPercent = (ldrRaw == HIGH) ? 0 : 100; // 100% light detected or 0% no light
     lightLevelPercent = constrain(lightLevelPercent, 0, 100);
-    Serial.print("LDR RAW: ");
-    Serial.print(ldrRaw);
-    Serial.println();
+    // Serial.print("LDR RAW: ");
+    // Serial.print(ldrRaw);
+    // Serial.println();
     bool soilDry = soilMoisturePercent < 60;
     bool highTemperature = temperature > 30.0;
-    bool lowHumidity = humidity < 40.0;
+    bool lowHumidity = humidity < 50.0;
     bool noRain = rainDetected == 1;
 
     if ((soilDry && (highTemperature || lowHumidity)) && noRain) {

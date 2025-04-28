@@ -314,6 +314,7 @@ npm run dev
 ---
 ## 📸 Project Images
 (Insert images of your hardware setup, screenshots of dashboard)
+![Dashboard Visulisation](./images/Dashboard.png)
 
 ---
 
