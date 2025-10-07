@@ -51,11 +51,19 @@ const initialSensorData = {
 
 // Sensor calibration and mapping functions
 const mapSoilMoisture = (rawValue) => {
+  // Handle null/undefined values
+  if (rawValue === null || rawValue === undefined || isNaN(rawValue)) {
+    return 0
+  }
   // Map from 0-1024 to 0-100%, with 0 being wet and 1024 being dry
   return Math.max(0, Math.min(100, 100 - (rawValue / 1024) * 100))
 }
 
 const mapLightIntensity = (rawValue) => {
+  // Handle null/undefined values
+  if (rawValue === null || rawValue === undefined || isNaN(rawValue)) {
+    return 0
+  }
   // Map from 0-1024 to 0-100%, with 0 being bright and 1024 being dark
   return Math.max(0, Math.min(100, 100 - (rawValue / 1024) * 100))
 }
@@ -69,6 +77,11 @@ export function DashboardContent() {
 
   // Function to get status text and color based on value and ranges
   const getStatusInfo = (value, type) => {
+    // Handle null/undefined values
+    if (value === null || value === undefined || isNaN(value)) {
+      return { text: "No Data", color: "text-gray-500" }
+    }
+
     switch (type) {
       case "temperature":
         if (value < 18) return { text: "Low", color: "text-blue-500" }
@@ -103,6 +116,11 @@ export function DashboardContent() {
 
   // Function to get gauge color based on value and type
   const getGaugeColor = (value, type) => {
+    // Handle null/undefined values
+    if (value === null || value === undefined || isNaN(value)) {
+      return "#64748b" // gray for no data
+    }
+
     switch (type) {
       case "temperature":
         if (value < 18) return "#3b82f6" // blue
@@ -239,14 +257,14 @@ export function DashboardContent() {
   // Function to toggle pump status
   const togglePump = () => {
     const newStatus = !sensorData.pumpStatus
+    const command = newStatus ? "pump-on" : "pump-off"
 
     // Send command to server
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(
         JSON.stringify({
-          type: "command",
-          command: "pump",
-          value: newStatus ? "on" : "off",
+          type: "control-command",
+          command: command,
         }),
       )
     }
@@ -260,14 +278,14 @@ export function DashboardContent() {
   // Function to toggle auto mode
   const toggleAutoMode = () => {
     const newMode = !sensorData.autoMode
+    const command = newMode ? "auto-on" : "auto-off"
 
     // Send command to server
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(
         JSON.stringify({
-          type: "command",
-          command: "autoMode",
-          value: newMode ? "on" : "off",
+          type: "control-command",
+          command: command,
         }),
       )
     }
@@ -282,9 +300,12 @@ export function DashboardContent() {
   const refreshData = () => {
     setIsLoading(true)
 
-    // Request fresh data from server
+    // Request fresh data from ESP8266
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "refresh" }))
+      wsRef.current.send(JSON.stringify({ 
+        type: "control-command",
+        command: "frontend-connected"
+      }))
     }
 
     // Set a timeout to stop loading state even if no response
@@ -417,13 +438,13 @@ export function DashboardContent() {
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="flex flex-col items-center justify-center">
-              <div className="text-4xl font-bold mt-2 animate-float">{sensorData.temperature}°C</div>
+              <div className="text-4xl font-bold mt-2 animate-float">{sensorData.temperature || '--'}°C</div>
               <div className="w-full h-32 mt-2">
                 <Gauge
-                  value={sensorData.temperature}
+                  value={sensorData.temperature || 0}
                   min={0}
                   max={50}
-                  color={getGaugeColor(sensorData.temperature, "temperature")}
+                  color={getGaugeColor(sensorData.temperature || 0, "temperature")}
                 />
               </div>
               <div className="text-xs text-muted-foreground mt-2">DHT11 Sensor Range: 0-50°C (±2°C)</div>
@@ -474,13 +495,13 @@ export function DashboardContent() {
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="flex flex-col items-center justify-center">
-              <div className="text-4xl font-bold mt-2 animate-float">{sensorData?.humidity.toFixed(1)}</div>
+              <div className="text-4xl font-bold mt-2 animate-float">{sensorData?.humidity?.toFixed(1) || '--'}</div>
               <div className="w-full h-32 mt-2">
                 <Gauge
-                  value={sensorData.humidity}
+                  value={sensorData.humidity || 0}
                   min={0}
                   max={100}
-                  color={getGaugeColor(sensorData.humidity, "humidity")}
+                  color={getGaugeColor(sensorData.humidity || 0, "humidity")}
                 />
               </div>
               <div className="text-xs text-muted-foreground mt-2">DHT11 Sensor Range: 20-90% (±5%)</div>
@@ -531,13 +552,13 @@ export function DashboardContent() {
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="flex flex-col items-center justify-center">
-              <div className="text-4xl font-bold mt-2 animate-float">{sensorData.soilMoisture.toFixed(1)}%</div>
+              <div className="text-4xl font-bold mt-2 animate-float">{sensorData.soilMoisture?.toFixed(1) || '--'}%</div>
               <div className="w-full h-32 mt-2">
                 <Gauge
-                  value={sensorData.soilMoisture}
+                  value={sensorData.soilMoisture || 0}
                   min={0}
                   max={100}
-                  color={getGaugeColor(sensorData.soilMoisture, "soilMoisture")}
+                  color={getGaugeColor(sensorData.soilMoisture || 0, "soilMoisture")}
                 />
               </div>
               <div className="flex justify-between w-full text-xs text-muted-foreground mt-2">
@@ -591,13 +612,13 @@ export function DashboardContent() {
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="flex flex-col items-center justify-center">
-              <div className="text-4xl font-bold mt-2 animate-float">{sensorData.lightLevel.toFixed(1)}%</div>
+              <div className="text-4xl font-bold mt-2 animate-float">{sensorData.lightLevel?.toFixed(1) || '--'}%</div>
               <div className="w-full h-32 mt-2">
                 <Gauge
-                  value={sensorData.lightLevel}
+                  value={sensorData.lightLevel || 0}
                   min={0}
                   max={100}
-                  color={getGaugeColor(sensorData.lightLevel, "lightIntensity")}
+                  color={getGaugeColor(sensorData.lightLevel || 0, "lightIntensity")}
                 />
               </div>
               <div className="flex justify-between w-full text-xs text-muted-foreground mt-2">
@@ -700,8 +721,9 @@ export function DashboardContent() {
           <CardDescription>Manage your irrigation system</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-            <div className="flex items-center gap-3">
+          {/* Manual Pump Controls */}
+          <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
+            <div className="flex items-center gap-3 mb-3">
               <div
                 className={cn(
                   "w-10 h-10 rounded-full flex items-center justify-center",
@@ -713,20 +735,58 @@ export function DashboardContent() {
                 <Power className="h-5 w-5" />
               </div>
               <div>
-                <div className="font-medium">Pump Status</div>
+                <div className="font-medium">Pump Control</div>
                 <div className="text-sm text-muted-foreground">{sensorData.pumpStatus ? "Active" : "Inactive"}</div>
               </div>
             </div>
-            <Switch
-              checked={sensorData.pumpStatus}
-              onCheckedChange={togglePump}
-              disabled={sensorData.autoMode || sensorData.rainDrop === 1}
-              className="data-[state=checked]:bg-green-500"
-            />
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant={sensorData.pumpStatus ? "default" : "outline"}
+                onClick={() => {
+                  if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(JSON.stringify({
+                      type: "control-command",
+                      command: "pump-on",
+                    }));
+                  }
+                  setSensorData((prev) => ({ ...prev, pumpStatus: true }));
+                }}
+                disabled={sensorData.autoMode}
+                className="flex-1"
+              >
+                <Power className="h-4 w-4 mr-1" />
+                Turn On
+              </Button>
+              <Button
+                size="sm"
+                variant={!sensorData.pumpStatus ? "default" : "outline"}
+                onClick={() => {
+                  if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(JSON.stringify({
+                      type: "control-command",
+                      command: "pump-off",
+                    }));
+                  }
+                  setSensorData((prev) => ({ ...prev, pumpStatus: false }));
+                }}
+                disabled={sensorData.autoMode}
+                className="flex-1"
+              >
+                <Power className="h-4 w-4 mr-1" />
+                Turn Off
+              </Button>
+            </div>
+            {sensorData.autoMode && (
+              <div className="text-xs text-muted-foreground mt-2">
+                Manual pump control disabled in auto mode
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-            <div className="flex items-center gap-3">
+          {/* Auto Mode Controls */}
+          <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
+            <div className="flex items-center gap-3 mb-3">
               <div
                 className={cn(
                   "w-10 h-10 rounded-full flex items-center justify-center",
@@ -742,11 +802,42 @@ export function DashboardContent() {
                 <div className="text-sm text-muted-foreground">{sensorData.autoMode ? "Enabled" : "Disabled"}</div>
               </div>
             </div>
-            <Switch
-              checked={sensorData.autoMode}
-              onCheckedChange={toggleAutoMode}
-              className="data-[state=checked]:bg-blue-500"
-            />
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant={sensorData.autoMode ? "default" : "outline"}
+                onClick={() => {
+                  if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(JSON.stringify({
+                      type: "control-command",
+                      command: "auto-on",
+                    }));
+                  }
+                  setSensorData((prev) => ({ ...prev, autoMode: true }));
+                }}
+                className="flex-1"
+              >
+                <ToggleRight className="h-4 w-4 mr-1" />
+                Enable Auto
+              </Button>
+              <Button
+                size="sm"
+                variant={!sensorData.autoMode ? "default" : "outline"}
+                onClick={() => {
+                  if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(JSON.stringify({
+                      type: "control-command",
+                      command: "auto-off",
+                    }));
+                  }
+                  setSensorData((prev) => ({ ...prev, autoMode: false }));
+                }}
+                className="flex-1"
+              >
+                <ToggleLeft className="h-4 w-4 mr-1" />
+                Disable Auto
+              </Button>
+            </div>
           </div>
 
           <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
@@ -757,15 +848,15 @@ export function DashboardContent() {
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Soil Moisture</span>
-                <span className="font-medium">{sensorData.soilMoisture.toFixed(1)}%</span>
+                <span className="font-medium">{sensorData.soilMoisture?.toFixed(1) || '--'}%</span>
               </div>
-              <Progress value={sensorData.soilMoisture} className="h-2" />
+              <Progress value={sensorData.soilMoisture || 0} className="h-2" />
 
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Light Level</span>
-                <span className="font-medium">{sensorData.lightLevel.toFixed(1)}%</span>
+                <span className="font-medium">{sensorData.lightLevel?.toFixed(1) || '--'}%</span>
               </div>
-              <Progress value={sensorData.lightLevel} className="h-2" />
+              <Progress value={sensorData.lightLevel || 0} className="h-2" />
             </div>
           </div>
 

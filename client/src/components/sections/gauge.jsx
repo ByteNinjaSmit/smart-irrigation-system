@@ -13,7 +13,7 @@ export function Gauge({ value, min, max, color }) {
 
     // console.log("Gauge props:", { value, min, max, color });
 
-    if (isNaN(min) || isNaN(max) || isNaN(value)) {
+    if (isNaN(min) || isNaN(max) || isNaN(value) || value === null || value === undefined) {
       console.warn("Gauge received invalid numeric props:", { min, max, value });
       return null;
     }

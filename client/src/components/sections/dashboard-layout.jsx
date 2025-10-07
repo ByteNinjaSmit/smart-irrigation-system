@@ -36,7 +36,7 @@ export function DashboardLayout({ children }) {
                     <path fill="currentColor" d="M12,7V12L15,10.5L12,7" />
                   </svg>
                 </div>
-                <span className="font-bold text-xl text-green-600">agromate</span>
+                <span className="font-bold text-xl text-green-600">EcoIrrigate</span>
               </Link>
             </div>
             <Button

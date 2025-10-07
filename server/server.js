@@ -78,13 +78,26 @@ wss.on("connection", (ws) => {
         ws.isEspDevice = true;
         console.log(`ESP device registered`);
 
+      } else if (parsedMessage.type === "control-command") {
+        // Handle control commands from frontend
+        const command = parsedMessage.command;
+        console.log(`Received control command from frontend: ${command}`);
+        
+        // Forward command to all ESP devices
+        for (let espWs of espDevices) {
+          if (espWs.readyState === WebSocket.OPEN) {
+            espWs.send(JSON.stringify({ command: command }));
+            console.log(`Forwarded command "${command}" to ESP device`);
+          }
+        }
+
       } else if (ws.isEspDevice) {
         // Message is coming from ESP
         console.log('Received message from ESP8266:', parsedMessage);
 
         // Store The Database
         // Save sensor data using middleware
-        await saveSensorData(parsedMessage);
+        // await saveSensorData(parsedMessage);
 
         // Now you need a way to determine WHICH frontend to send to.
         // Example: assume one frontend only for now, or select by some logic.

@@ -7,16 +7,18 @@
 
 
 // WiFi credentials
-const char* ssid = "IOT";
+const char* ssid = "iot";
 const char* password = "1234567890";
 WiFiUDP udp;
 NTPClient timeClient(udp, "pool.ntp.org", 19800, 60000);  // 19800 is the UTC offset for IST (India Standard Time)
 
 
 // WebSocket server
-const char* websocket_server = "192.168.44.57"; // 192.168.44.57  / 192.168.15.112
+const char* websocket_server = "10.235.116.112"; // 192.168.44.57  / 192.168.15.112
 const uint16_t websocket_port = 3000;
 
+
+#define RELAY_PIN 16  
 // DHT22 setup
 #define DHTPIN 4
 #define DHTTYPE DHT11
@@ -66,14 +68,68 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
       break;
     case WStype_TEXT:
       {
-
         Serial.printf("Received from server: %s\n", payload);
 
         String msg = String((char*)payload);
 
-        if (msg.indexOf("frontend-connected") >= 0) {
-          Serial.println("Frontend connected, sending immediate data...");
-          firstTimeSend = true;  // 👈 Mark to send immediately
+        // Handle JSON commands
+        DynamicJsonDocument doc(256);
+        DeserializationError error = deserializeJson(doc, payload);
+        
+        if (error) {
+          Serial.print("JSON parsing failed: ");
+          Serial.println(error.c_str());
+          // Fallback to old string-based handling
+          if (msg.indexOf("frontend-connected") >= 0) {
+            Serial.println("Frontend connected, sending immediate data...");
+            firstTimeSend = true;
+          }
+        } else {
+          // Handle JSON commands
+          if (doc.containsKey("type") && doc["type"] == "frontend-connected") {
+            Serial.println("Frontend connected, sending immediate data...");
+            firstTimeSend = true;
+            
+            // Blink LED to indicate frontend connection
+            blinkLED(2, 100); // Quick double blink
+          } else if (doc.containsKey("command")) {
+            String command = doc["command"];
+            Serial.println("Received command: " + command);
+            
+            if (command == "pump-on") {
+              digitalWrite(RELAY_PIN, HIGH);
+              pumpStatus = true;
+              Serial.println("Pump turned ON manually");
+              
+              // Blink blue LED to indicate manual pump activation
+              blinkLED(3, 200); // Blink 3 times with 200ms delay
+            }
+            else if (command == "pump-off") {
+              digitalWrite(RELAY_PIN, LOW);
+              pumpStatus = false;
+              Serial.println("Pump turned OFF manually");
+              
+              // Blink blue LED to indicate manual pump deactivation
+              blinkLED(2, 300); // Blink 2 times with 300ms delay
+            }
+            else if (command == "auto-on") {
+              autoMode = true;
+              Serial.println("Auto mode enabled");
+              
+              // Blink LED to indicate auto mode enabled
+              blinkLED(4, 150); // Blink 4 times with 150ms delay
+            }
+            else if (command == "auto-off") {
+              autoMode = false;
+              Serial.println("Auto mode disabled");
+              
+              // Blink LED to indicate auto mode disabled
+              blinkLED(1, 500); // Single long blink
+            }
+            else {
+              Serial.println("Unknown command: " + command);
+            }
+          }
         }
         break;
       }
@@ -101,6 +157,16 @@ String getISOTime() {
   return String(buffer);
 }
 
+// Function to blink the built-in LED
+void blinkLED(int times, int delayMs) {
+  for (int i = 0; i < times; i++) {
+    digitalWrite(LED_PIN, LOW);  // Turn LED ON (active LOW)
+    delay(delayMs);
+    digitalWrite(LED_PIN, HIGH); // Turn LED OFF
+    delay(delayMs);
+  }
+}
+
 
 
 void setup() {
@@ -109,6 +175,8 @@ void setup() {
   pinMode(SOIL_MOISTURE_PIN, INPUT);
   pinMode(RAIN_SENSOR_PIN, INPUT);
   pinMode(LDR_PIN, INPUT);  // Set LDR pin as input
+  pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, HIGH); // Keep relay OFF at boot
 
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
@@ -136,9 +204,13 @@ void loop() {
   if (millis() - lastSendTime > 1000) {
     float temperature = dht.readTemperature(false);
     float humidity = dht.readHumidity();
+    
+    // Handle DHT sensor read failures
     if (isnan(temperature) || isnan(humidity)) {
-      Serial.println("Failed to read from DHT sensor!");
-      return;
+      Serial.println("Failed to read from DHT sensor! Using previous values.");
+      // Use previous values instead of returning
+      temperature = previousTemperature != -1000 ? previousTemperature : 25.0; // Default fallback
+      humidity = previousHumidity != -1000 ? previousHumidity : 50.0; // Default fallback
     }
 
     int ldrRaw = digitalRead(LDR_PIN);
@@ -159,13 +231,18 @@ void loop() {
     bool lowHumidity = humidity < 50.0;
     bool noRain = rainDetected == 1;
 
-    if ((soilDry && (highTemperature || lowHumidity)) && noRain) {
+    // Only run automatic irrigation if autoMode is enabled
+    if (autoMode && (soilDry && (highTemperature || lowHumidity)) && noRain) {
       digitalWrite(LED_PIN, LOW);
+      digitalWrite(RELAY_PIN, HIGH); // ON (active LOW)
       pumpStatus = true;
-    } else {
+    } else if (autoMode) {
+      // Only turn off pump automatically if in auto mode
       digitalWrite(LED_PIN, HIGH);
       pumpStatus = false;
+      digitalWrite(RELAY_PIN, LOW); // OFF
     }
+    // If not in auto mode, pump status is controlled manually via commands
 
     bool shouldSend = false;
 
