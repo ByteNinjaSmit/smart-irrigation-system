@@ -97,7 +97,7 @@ wss.on("connection", (ws) => {
 
         // Store The Database
         // Save sensor data using middleware
-        // await saveSensorData(parsedMessage);
+        await saveSensorData(parsedMessage);
 
         // Now you need a way to determine WHICH frontend to send to.
         // Example: assume one frontend only for now, or select by some logic.

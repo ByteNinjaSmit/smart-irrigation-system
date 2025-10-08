@@ -40,10 +40,14 @@ const initialSensorData = {
   temperature: 28.5,
   humidity: 65,
   soilMoisture: 5, // Adjusted for raw sensor value (0-1024)
+  soilMoistureRaw: 3000, // Raw analog value from soil moisture sensor (0-4095)
   lightLevel: 90, // Adjusted for LDR sensor (0-1024)
-  rainDrop: 1,
+  lightLevelRaw: 300, // Raw analog value from LDR (0-4095)
+  rainDrop: 0, // Rain intensity percentage (0-100%)
+  rainDropRaw: 4000, // Raw analog value from rain sensor (0-4095)
   pumpStatus: false,
   autoMode: true,
+  irrigationScore: 0, // Smart irrigation score
   lastUpdated: new Date().toISOString(),
   connectionStatus: true,
   espConnected: false,
@@ -65,7 +69,7 @@ const mapLightIntensity = (rawValue) => {
     return 0
   }
   // Map from 0-1024 to 0-100%, with 0 being bright and 1024 being dark
-  return Math.max(0, Math.min(100, 100 - (rawValue / 1024) * 100))
+  return Math.max(0, Math.min(100, 100 - (rawValue / 4095) * 100))
 }
 
 export function DashboardContent() {
@@ -94,19 +98,25 @@ export function DashboardContent() {
         return { text: "Optimal", color: "text-green-500" }
 
       case "soilMoisture":
-        if (value < 30) return { text: "Dry", color: "text-red-500" }
-        if (value > 50) return { text: "Wet", color: "text-blue-500" }
-        return { text: "Moist", color: "text-green-500" }
+        if (value >= 80) return { text: "Wet/Water", color: "text-blue-500" }
+        if (value >= 40) return { text: "Moist", color: "text-green-500" }
+        if (value >= 10) return { text: "Dry", color: "text-yellow-500" }
+        if (value >= 0) return { text: "Air/No Soil", color: "text-red-500" }
+        return { text: "Unknown", color: "text-gray-500" }
 
       case "lightIntensity":
-        if (value > 10) return { text: "Low", color: "text-blue-500" }
-        if (value < 10) return { text: "Very Bright", color: "text-yellow-500" }
-        return { text: "Optimal", color: "text-green-500" }
-
+        if (value >= 90) return { text: "Bright Sunlight", color: "text-gray-500" }
+        if (value >= 70) return { text: "Indoor Light", color: "text-blue-500" }
+        if (value >= 40) return { text: "Dim/Shadow", color: "text-green-500" }
+        if (value >= 0) return { text: "Very Dark", color: "text-yellow-500" }
+        return { text: "Unknown", color: "text-gray-500" }
       case "rainDrop":
-        return value === 0
-          ? { text: "No Rain", color: "text-gray-500" }
-          : { text: "Rain Detected", color: "text-blue-500" }
+        if (value >= 80) return { text: "Heavy Rain", color: "text-blue-600" }
+        if (value >= 50) return { text: "Moderate Rain", color: "text-blue-500" }
+        if (value >= 20) return { text: "Light Rain", color: "text-blue-400" }
+        if (value >= 5) return { text: "Drizzle", color: "text-gray-500" }
+        if (value >= 0) return { text: "No Rain", color: "text-gray-400" }
+        return { text: "Unknown", color: "text-gray-500" }
 
       default:
         return { text: "Unknown", color: "text-gray-500" }
@@ -133,17 +143,26 @@ export function DashboardContent() {
         return "#22c55e" // green
 
       case "soilMoisture":
-        if (value < 30) return "#ef4444" // red
-        if (value > 50) return "#3b82f6" // blue
-        return "#22c55e" // green
+        if (value >= 80) return "#3b82f6" // blue for wet/water
+        if (value >= 40) return "#22c55e" // green for moist
+        if (value >= 10) return "#eab308" // yellow for dry
+        if (value >= 0) return "#ef4444" // red for air/no soil
+        return "#64748b" // fallback gray
 
       case "lightIntensity":
-        if (value < 10) return "#3b82f6" // blue
-        if (value > 10) return "#eab308" // yellow
-        return "#22c55e" // green
+        if (value >= 90) return "#64748b" // gray for very dark
+        if (value >= 70) return "#3b82f6" // blue for dim/shadow
+        if (value >= 40) return "#22c55e" // green for indoor light
+        if (value >= 0) return "#eab308" // yellow for bright sunlight
+        return "#64748b" // fallback gray
 
       case "rainDrop":
-        return value === 1 ? "#64748b" : "#3b82f6" // gray = no rain, blue = rain
+        if (value >= 80) return "#1e40af" // dark blue for heavy rain
+        if (value >= 50) return "#3b82f6" // blue for moderate rain
+        if (value >= 20) return "#60a5fa" // light blue for light rain
+        if (value >= 5) return "#94a3b8" // gray for drizzle
+        if (value >= 0) return "#cbd5e1" // light gray for no rain
+        return "#64748b" // fallback gray
 
       default:
         return "#64748b" // fallback: slate
@@ -211,10 +230,14 @@ export function DashboardContent() {
               temperature: data.temperature ?? prev.temperature,
               humidity: data.humidity !== undefined ? data.humidity : prev.humidity,
               soilMoisture: data.soilMoisture ?? prev.soilMoisture,
+              soilMoistureRaw: data.soilMoistureRaw !== undefined ? data.soilMoistureRaw : prev.soilMoistureRaw,
               lightLevel: data.lightLevel !== undefined ? data.lightLevel : prev.lightLevel,
-              rainDrop: data.rainDrop ?? prev.rainDrop,
+              lightLevelRaw: data.lightLevelRaw !== undefined ? data.lightLevelRaw : prev.lightLevelRaw,
+              rainDrop: data.rainDrop !== undefined ? data.rainDrop : prev.rainDrop,
+              rainDropRaw: data.rainDropRaw !== undefined ? data.rainDropRaw : prev.rainDropRaw,
               pumpStatus: data.pumpStatus ?? prev.pumpStatus,
               autoMode: data.autoMode ?? prev.autoMode,
+              irrigationScore: data.irrigationScore !== undefined ? data.irrigationScore : prev.irrigationScore,
               lastUpdated: new Date().toISOString(),
               espConnected: data.espConnected ?? prev.espConnected,
             };
@@ -325,8 +348,37 @@ export function DashboardContent() {
   const mappedLightIntensity = mapLightIntensity(sensorData.lightLevel)
 
 
-  // Determine if irrigation is needed based on soil moisture and rain
-  const irrigationNeeded = mappedSoilMoisture < 30 && sensorData.rainDrop === 1
+  // Smart irrigation status based on multiple factors
+  const getIrrigationStatus = () => {
+    const score = sensorData.irrigationScore || 0;
+    const threshold = 6; // Same as ESP32 threshold
+    
+    if (score >= threshold) {
+      return {
+        status: "Recommended",
+        color: "text-green-600",
+        bgColor: "bg-green-50 border-green-200",
+        description: "Conditions favor irrigation"
+      };
+    } else if (score >= threshold - 2) {
+      return {
+        status: "Consider",
+        color: "text-yellow-600",
+        bgColor: "bg-yellow-50 border-yellow-200",
+        description: "Irrigation may be beneficial"
+      };
+    } else {
+      return {
+        status: "Not Recommended",
+        color: "text-red-600",
+        bgColor: "bg-red-50 border-red-200",
+        description: "Conditions do not favor irrigation"
+      };
+    }
+  };
+
+  const irrigationStatus = getIrrigationStatus();
+  const irrigationNeeded = sensorData.irrigationScore >= 6 && sensorData.soilMoisture < 50 && sensorData.rainDrop < 30
   // const isEspConnected = sensorData.espConnected;
   return (
     <div className="space-y-6">
@@ -527,11 +579,13 @@ export function DashboardContent() {
                     <Badge
                       className={cn(
                         "rounded-full px-2 py-0 h-5 animate-pulse-glow",
-                        getStatusInfo(sensorData.soilMoisture, "soilMoisture").text === "Optimal"
+                        getStatusInfo(sensorData.soilMoisture, "soilMoisture").text === "Moist"
                           ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400"
-                          : getStatusInfo(mappedSoilMoisture, "soilMoisture").text === "Wet"
+                          : getStatusInfo(sensorData.soilMoisture, "soilMoisture").text === "Wet/Water"
                             ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400"
-                            : "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400",
+                            : getStatusInfo(sensorData.soilMoisture, "soilMoisture").text === "Dry"
+                              ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-400"
+                              : "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400",
                       )}
                     >
                       {getStatusInfo(sensorData.soilMoisture, "soilMoisture").text}
@@ -539,11 +593,13 @@ export function DashboardContent() {
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>
-                      {getStatusInfo(sensorData.soilMoisture, "soilMoisture").text === "Optimal"
+                      {getStatusInfo(sensorData.soilMoisture, "soilMoisture").text === "Moist"
                         ? "Soil moisture is in the optimal range for plant growth"
-                        : getStatusInfo(sensorData.soilMoisture, "soilMoisture").text === "Wet"
-                          ? "Soil is too wet, reduce watering"
-                          : "Soil is too dry, increase watering"}
+                        : getStatusInfo(sensorData.soilMoisture, "soilMoisture").text === "Wet/Water"
+                          ? "Soil is very wet or sensor is in water, reduce watering"
+                          : getStatusInfo(sensorData.soilMoisture, "soilMoisture").text === "Dry"
+                            ? "Soil is dry, consider watering"
+                            : "Sensor is in air or no soil detected, check sensor placement"}
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -562,8 +618,14 @@ export function DashboardContent() {
                 />
               </div>
               <div className="flex justify-between w-full text-xs text-muted-foreground mt-2">
-                <span>Raw: {sensorData.soilMoisture}</span>
-                <span>Range: 0-1024</span>
+                <span>Raw: {sensorData.soilMoistureRaw || '--'}</span>
+                <span>Range: 0-4095</span>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {sensorData.soilMoistureRaw >= 4000 && sensorData.soilMoistureRaw <= 4095 && "Air (no soil)"}
+                {sensorData.soilMoistureRaw >= 2500 && sensorData.soilMoistureRaw < 4000 && "Dry soil"}
+                {sensorData.soilMoistureRaw >= 1200 && sensorData.soilMoistureRaw < 2500 && "Moist soil"}
+                {sensorData.soilMoistureRaw >= 0 && sensorData.soilMoistureRaw < 1200 && "Wet soil/Water"}
               </div>
             </div>
           </CardContent>
@@ -587,23 +649,27 @@ export function DashboardContent() {
                     <Badge
                       className={cn(
                         "rounded-full px-2 py-0 h-5 animate-pulse-glow",
-                        getStatusInfo(mappedLightIntensity, "lightIntensity").text === "Optimal"
+                        getStatusInfo(sensorData.lightLevel, "lightIntensity").text === "Indoor Light"
                           ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400"
-                          : getStatusInfo(mappedLightIntensity, "lightIntensity").text === "High"
+                          : getStatusInfo(sensorData.lightLevel, "lightIntensity").text === "Bright Sunlight"
                             ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-400"
-                            : "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400",
+                            : getStatusInfo(sensorData.lightLevel, "lightIntensity").text === "Dim/Shadow"
+                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400"
+                              : "bg-gray-100 text-gray-700 dark:bg-gray-900/50 dark:text-gray-400",
                       )}
                     >
-                      {getStatusInfo(mappedLightIntensity, "lightIntensity").text}
+                      {getStatusInfo(sensorData.lightLevel, "lightIntensity").text}
                     </Badge>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>
-                      {getStatusInfo(mappedLightIntensity, "lightIntensity").text === "Optimal"
-                        ? "Light intensity is in the optimal range for plant growth"
-                        : getStatusInfo(mappedLightIntensity, "lightIntensity").text === "High"
-                          ? "Light intensity is high, consider providing shade"
-                          : "Light intensity is low, consider supplemental lighting"}
+                      {getStatusInfo(sensorData.lightLevel, "lightIntensity").text === "Indoor Light"
+                        ? "Light intensity is in the optimal range for most plants"
+                        : getStatusInfo(sensorData.lightLevel, "lightIntensity").text === "Bright Sunlight"
+                          ? "Very bright light detected, consider providing shade for sensitive plants"
+                          : getStatusInfo(sensorData.lightLevel, "lightIntensity").text === "Dim/Shadow"
+                            ? "Low light conditions, consider supplemental lighting"
+                            : "Very dark conditions, plants may need artificial lighting"}
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -622,8 +688,14 @@ export function DashboardContent() {
                 />
               </div>
               <div className="flex justify-between w-full text-xs text-muted-foreground mt-2">
-                <span>Raw: {sensorData.lightLevel}</span>
-                <span>Range: 0-1024</span>
+                <span>Raw: {sensorData.lightLevelRaw || '--'}</span>
+                <span>Range: 0-4095</span>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {sensorData.lightLevelRaw >= 3500 && sensorData.lightLevelRaw <= 4095 && "Darkness"}
+                {sensorData.lightLevelRaw >= 2000 && sensorData.lightLevelRaw < 3500 && "Dim/Shadow"}
+                {sensorData.lightLevelRaw >= 1000 && sensorData.lightLevelRaw < 2000 && "Indoor Light"}
+                {sensorData.lightLevelRaw >= 0 && sensorData.lightLevelRaw < 1000 && "Bright Sunlight"}
               </div>
             </div>
           </CardContent>
@@ -636,29 +708,108 @@ export function DashboardContent() {
               <CloudRain className="h-5 w-5 text-blue-500" />
               Rain Detection
             </CardTitle>
-            <CardDescription>Raindrop sensor status</CardDescription>
+            <CardDescription>Rain intensity sensor status</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col items-center justify-center p-6">
-              {sensorData.rainDrop === 0 ? (
-                <div className="flex flex-col items-center">
-                  <CloudDrizzle className="h-24 w-24 text-blue-500 animate-pulse-glow" />
-                  <div className="text-2xl font-bold mt-4 text-blue-600 dark:text-blue-400">Rain Detected</div>
-                  <div className="text-sm text-muted-foreground mt-2">
-                    Natural irrigation in progress. Pump operation may be paused.
+              <div className="text-4xl font-bold mt-2 animate-float">{sensorData.rainDrop?.toFixed(1) || '--'}%</div>
+              <div className="w-full h-32 mt-2">
+                <Gauge
+                  value={sensorData.rainDrop || 0}
+                  min={0}
+                  max={100}
+                  color={getGaugeColor(sensorData.rainDrop || 0, "rainDrop")}
+                />
+              </div>
+              <div className="flex justify-between w-full text-xs text-muted-foreground mt-2">
+                <span>Raw: {sensorData.rainDropRaw || '--'}</span>
+                <span>Range: 0-4095</span>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {sensorData.rainDropRaw >= 4000 && sensorData.rainDropRaw <= 4095 && "Dry plate"}
+                {sensorData.rainDropRaw >= 2500 && sensorData.rainDropRaw < 4000 && "Few drops"}
+                {sensorData.rainDropRaw >= 600 && sensorData.rainDropRaw < 2500 && "Wet plate"}
+                {sensorData.rainDropRaw >= 0 && sensorData.rainDropRaw < 600 && "Fully wet/Submerged"}
+              </div>
+              <div className="mt-4 text-sm text-center">
+                {sensorData.rainDrop >= 80 && (
+                  <div className="text-blue-600 dark:text-blue-400">
+                    <CloudRain className="h-8 w-8 mx-auto mb-2 animate-pulse" />
+                    <div className="font-semibold">Heavy Rain Detected</div>
+                    <div className="text-xs text-muted-foreground">Irrigation paused</div>
                   </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center">
-                  <CloudOff className="h-24 w-24 text-gray-400" />
-                  <div className="text-2xl font-bold mt-4 text-gray-600 dark:text-gray-400">No Rain Detected</div>
-                  <div className="text-sm text-muted-foreground mt-2">
-                    Monitor soil moisture levels for irrigation needs.
+                )}
+                {sensorData.rainDrop >= 20 && sensorData.rainDrop < 80 && (
+                  <div className="text-blue-500">
+                    <CloudDrizzle className="h-8 w-8 mx-auto mb-2" />
+                    <div className="font-semibold">Rain Detected</div>
+                    <div className="text-xs text-muted-foreground">Monitor conditions</div>
                   </div>
+                )}
+                {sensorData.rainDrop < 20 && (
+                  <div className="text-gray-500">
+                    <CloudOff className="h-8 w-8 mx-auto mb-2" />
+                    <div className="font-semibold">No Rain</div>
+                    <div className="text-xs text-muted-foreground">Normal irrigation possible</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Smart Irrigation Status Card */}
+        <Card className="overflow-hidden border-none shadow-md bg-white dark:bg-gray-900 card-hover">
+          <div className="h-1.5 w-full" style={{ backgroundColor: irrigationStatus.color.replace('text-', '#') }}></div>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-purple-500" />
+              Smart Irrigation Status
+            </CardTitle>
+            <CardDescription>AI-powered irrigation decision system</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col items-center justify-center p-6">
+              <div className="text-4xl font-bold mt-2 animate-float">{sensorData.irrigationScore || 0}</div>
+              <div className="text-sm text-muted-foreground mb-4">Irrigation Score</div>
+              
+              <div className={`w-full p-4 rounded-lg border ${irrigationStatus.bgColor} dark:bg-gray-800`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold">Status:</span>
+                  <span className={`font-bold ${irrigationStatus.color}`}>{irrigationStatus.status}</span>
                 </div>
-              )}
-              <div className="mt-6 text-xs text-muted-foreground">
-                Raw Value: {sensorData.rainDrop} (1 = No Rain, 0 = Rain Detected)
+                <div className="text-sm text-muted-foreground">{irrigationStatus.description}</div>
+              </div>
+
+              <div className="w-full mt-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Soil Moisture:</span>
+                  <span className={sensorData.soilMoisture < 50 ? "text-red-600" : "text-green-600"}>
+                    {sensorData.soilMoisture?.toFixed(1) || '--'}%
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Rain Intensity:</span>
+                  <span className={sensorData.rainDrop > 30 ? "text-blue-600" : "text-gray-600"}>
+                    {sensorData.rainDrop?.toFixed(1) || '--'}%
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Temperature:</span>
+                  <span className={sensorData.temperature > 30 ? "text-red-600" : "text-green-600"}>
+                    {sensorData.temperature?.toFixed(1) || '--'}°C
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Humidity:</span>
+                  <span className={sensorData.humidity < 40 ? "text-yellow-600" : "text-green-600"}>
+                    {sensorData.humidity?.toFixed(1) || '--'}%
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-4 text-xs text-muted-foreground text-center">
+                Threshold: 6 | Current: {sensorData.irrigationScore || 0}
               </div>
             </div>
           </CardContent>
@@ -871,20 +1022,30 @@ export function DashboardContent() {
           )}
 
           {irrigationNeeded && (
-            <Alert className="bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800 animate-pulse-glow">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Irrigation Needed</AlertTitle>
+            <Alert className="bg-green-50 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800 animate-pulse-glow">
+              <Zap className="h-4 w-4" />
+              <AlertTitle>Smart Irrigation Recommended</AlertTitle>
               <AlertDescription>
-                Soil moisture is below optimal levels and no rain is detected. Consider watering your plants.
+                Irrigation score: {sensorData.irrigationScore}/10. Conditions favor watering. The system will automatically irrigate if enabled.
               </AlertDescription>
             </Alert>
           )}
 
-          {sensorData.rainDrop === 0 && (
+          {sensorData.irrigationScore < 4 && sensorData.autoMode && (
+            <Alert className="bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Irrigation Paused</AlertTitle>
+              <AlertDescription>
+                Irrigation score: {sensorData.irrigationScore}/10. Current conditions do not favor irrigation (rain, adequate moisture, or unfavorable weather).
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {sensorData.rainDrop >= 50 && (
             <Alert className="bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
               <CloudRain className="h-4 w-4" />
-              <AlertTitle>Rain Detected</AlertTitle>
-              <AlertDescription>Natural irrigation is occurring. Automatic watering is paused.</AlertDescription>
+              <AlertTitle>Significant Rain Detected</AlertTitle>
+              <AlertDescription>Rain intensity is {sensorData.rainDrop?.toFixed(1)}%. Automatic watering is paused to avoid overwatering.</AlertDescription>
             </Alert>
           )}
         </CardContent>

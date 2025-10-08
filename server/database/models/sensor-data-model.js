@@ -14,13 +14,25 @@ const sensorDataSchema = new mongoose.Schema({
         type: Number,
         required: true,
     },
+    soilMoistureRaw: {
+        type: Number,
+        required: false,
+    },
     lightLevel: {
         type: Number,
         required: true,
     },
+    lightLevelRaw: {
+        type: Number,
+        required: false,
+    },
     rainDrop: {
         type: Number,
         required: true,
+    },
+    rainDropRaw: {
+        type: Number,
+        required: false,
     },
     pumpStatus: {
         type: Boolean,
@@ -29,6 +41,10 @@ const sensorDataSchema = new mongoose.Schema({
     autoMode: {
         type: Boolean,
         required: true,
+    },
+    irrigationScore: {
+        type: Number,
+        required: false,
     },
     timestamp: {
         type: Date,
